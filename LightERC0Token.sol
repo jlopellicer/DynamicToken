@@ -334,17 +334,33 @@ contract DynamicToken is LightERC20Token("DynamicToken", "DMT") {
         _increaseFactor = 1015;
     }
 
+    /**
+     * @dev Function to mint a new token. It requires the sender to pay the current mint price.
+     * The mint price increases after each successful mint.
+     */
     function mintToken() external payable nonReentrant {
-        require(msg.value >= _mintPrice, "Cannot mint");
-        //(bool success, ) = address(0).call{value: _mintPrice}(""); 
+        // Ensure the sender sends enough ether to meet or exceed the mint price
+        require(msg.value >= _mintPrice, "Cannot mint: Insufficient payment");
+
+        // Mint 1 token to the sender (msg.sender)
         _mint(msg.sender, 1);
-        _mintPrice *= _increaseFactor;
+
+        // After minting, increase the mint price by the defined factor
+        _mintPrice = (_mintPrice * _increaseFactor) / 1000; // Scale down to preserve precision
     }
 
+    /**
+     * @dev Function to view the current mint price.
+     * @return The current mint price in wei.
+     */
     function mintPrice() external view returns (uint256) {
         return _mintPrice;
     }
 
+    /**
+     * @dev Function to view the increase factor.
+     * @return The increase factor used to adjust the mint price after each mint.
+     */
     function increaseFactor() external view returns (uint256) {
         return _increaseFactor;
     }
