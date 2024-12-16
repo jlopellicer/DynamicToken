@@ -343,7 +343,7 @@ contract DynamicToken is LightERC20Token("DynamicToken", "DMT") {
         require(msg.value >= _mintPrice, "Cannot mint: Insufficient payment");
 
         // Mint 1 token to the sender (msg.sender)
-        _mint(msg.sender, 1);
+        _mint(msg.sender, 1 ** decimals());
 
         // After minting, increase the mint price by the defined factor
         _mintPrice = (_mintPrice * _increaseFactor) / 1000; // Scale down to preserve precision
