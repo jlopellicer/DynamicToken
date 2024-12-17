@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.28;
 
 /// @title ERC20 Safe Interface
 /// @author Jorge López Pellicer
@@ -324,43 +324,79 @@ contract LightERC20Token {
     }
 }
 
-contract DynamicToken is LightERC20Token("DynamicToken", "DMT") {
+contract Ascend is LightERC20Token("Ascend", "ASC") {
 
+    uint256 _box;
     uint256 _mintPrice;
     uint256 _increaseFactor;
+    uint256 _destroyPrice;
+    uint256 _factorCalculator;
 
     constructor() {
-        _mintPrice = 1000;
-        _increaseFactor = 1015;
+        _mintPrice = 0.00001 ether;
+        _increaseFactor = 101158;
+        _factorCalculator = 100000;
     }
 
-    /**
-     * @dev Function to mint a new token. It requires the sender to pay the current mint price.
-     * The mint price increases after each successful mint.
-     */
     function mintToken() external payable nonReentrant {
-        // Ensure the sender sends enough ether to meet or exceed the mint price
-        require(msg.value >= _mintPrice, "Cannot mint: Insufficient payment");
+        require(msg.value >= _mintPrice, "Cannot mint");
 
-        // Mint 1 token to the sender (msg.sender)
-        _mint(msg.sender, 1 ** decimals());
-
-        // After minting, increase the mint price by the defined factor
-        _mintPrice = (_mintPrice * _increaseFactor) / 1000; // Scale down to preserve precision
+        if(msg.value > _mintPrice) {
+            (bool success, ) = msg.sender.call{value: (msg.value - _mintPrice)}(""); 
+            require(success, "Error when refunding");
+        }
+        
+        _box += _mintPrice;        
+        _mint(msg.sender, 10 ** decimals());
+        _mintPrice = (_mintPrice * _increaseFactor) / _factorCalculator;
     }
 
-    /**
-     * @dev Function to view the current mint price.
-     * @return The current mint price in wei.
-     */
+    function mintTokenBulk(uint256 _amount) external payable nonReentrant {
+        require(_amount > 0, "Cannot mint 0 tokens");
+        require(_amount <= 1000, "Exceeds max bulk mint limit");
+
+        (uint256 _totalCost, uint256 _auxMintPrice) = bulkMintCost(_amount);
+        require(msg.value >= _totalCost, "Cannot mint");
+
+        if(msg.value > _totalCost) {
+            (bool success, ) = msg.sender.call{value: (msg.value - _totalCost)}(""); 
+            require(success, "Error when refunding");
+        }
+        
+        _box += _totalCost;        
+        _mint(msg.sender, _amount * 10 ** decimals());
+        _mintPrice = _auxMintPrice;
+    }
+
+    function bulkMintCost(uint256 _amount) internal view returns (uint256, uint256) {
+        uint256 _auxMintPrice = _mintPrice;
+        uint256 _totalCost = 0;
+        for(uint256 i = 0; i < _amount; i++) {
+            _totalCost += _auxMintPrice;
+            _auxMintPrice = (_auxMintPrice * _increaseFactor) / _factorCalculator;
+        }
+
+        return (_totalCost, _auxMintPrice);
+    }
+
+    function burn() external nonReentrant {
+        require(balanceOf(msg.sender) > 0, "User has no tokens");
+        _burn(msg.sender, 10 ** decimals());
+    }
+
+    function bulkBurn(uint256 _amount) external nonReentrant {
+        require(balanceOf(msg.sender) > 0, "User has no tokens");
+        _burn(msg.sender, _amount);
+    }
+
+    function box() external view returns (uint256) {
+        return _box;
+    }
+
     function mintPrice() external view returns (uint256) {
         return _mintPrice;
     }
 
-    /**
-     * @dev Function to view the increase factor.
-     * @return The increase factor used to adjust the mint price after each mint.
-     */
     function increaseFactor() external view returns (uint256) {
         return _increaseFactor;
     }
